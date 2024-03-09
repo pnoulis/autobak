@@ -18,19 +18,36 @@ app_distname=$(app_name)-v$(app_version)
 ##################################################
 srcdir_top=.
 srcdir=$(srcdir_top)/src
+buildir=$(srcdir_top)/build
+bindir=~/bin
 
 ##################################################
 # Files
 ##################################################
-autobak_src=$(app_name).sh
-autobak=$(app_name)
+in_autobak=$(app_name).sh
+out_autobak=$(app_name)
 
-all: run
+all: build
+
+##################################################
+# Build
+##################################################
+build: $(out_autobak)
+
+$(out_autobak): $(in_autobak)
+	cat $^ > $@
+	chmod +x $@
+
+##################################################
+# Install
+##################################################
+install: $(out_autobak)
+	cp --update $(out_autobak) $(bindir)
 
 ##################################################
 # run
 ##################################################
-run: file?=$(autobak_src)
+run: file?=$(in_autobak)
 run: $(file)
 	@if [[ "$${file:-}" == "" ]]; then
 	echo "Usage: 'make run file [args]'"
@@ -68,6 +85,7 @@ clean:
 	-rm -f *.log
 	-rm -f .#*
 	-rm -f env.*
+	-rm -f $(out_autobak)
 	find $(srcdir_top) -name '*~' -exec rm {} \;
 
 ##################################################
@@ -77,6 +95,9 @@ distclean: clean
 
 # Develop
 .PHONY: run
+.PHONY: build
+# Distribute
+.PHONY: install
 # Clean
 .PHONY: clean
 .PHONY: distclean

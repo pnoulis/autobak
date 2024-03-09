@@ -1,0 +1,25 @@
+* About
+
+Task planner and documentation repository for the autobak project.
+
+* Tasks
+
+** Identify the target backup medium
+realpath -e /dev/disk/by-id/${target_hdd}
+
+** Mount it
+
+* Resources
+
+* What do I want from my backup system?
+
+Run automaticaly at frequent time intervals.
+
+Notify me at the end of the process.
+
+Should backup the data in a central remote server.
+
+Should take into consideration of version control systems.
+Specifically, version controlled directory trees require a different
+backing strategy.
+
