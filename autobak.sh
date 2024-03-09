@@ -58,7 +58,7 @@ main() {
     debugv destination_path
     rsync --cvs-exclude --archive --human-readable \
           --mkpath --verbose \
-          ${source_path} ${destination_path}/
+          ${source_path}/* ${destination_path}/
     umount --verbose ${mountpoint}
 }
 
