@@ -1,106 +1,46 @@
-#!/usr/bin/make
+#!/bin/make
 
-SHELL:=/usr/bin/bash
-.DEFAULT_GOAL:=run
-.SECONDEXPANSION:
+SHELL := /bin/bash
+.DEFAULT_GOAL := run
+.DELETE_ON_ERROR:
 .ONESHELL:
-.EXPORT_ALL_VARIABLES:
 
-##################################################
-# Application
-##################################################
-app_name=autobak
-app_version=0.0.1
-app_distname=$(app_name)-v$(app_version)
+REMOTE_SERVER_IP=159.89.21.248
+REMOTE_SERVER_HOSTNAME=localhost
+REMOTE_SERVER_LOGIN=$(USER)
+ifeq ($(REMOTE_SERVER_HOSTNAME), "")
+REMOTE_SERVER_HOST=$(REMOTE_SERVER_IP)
+else
+REMOTE_SERVER_HOST=$(REMOTE_SERVER_HOSTNAME)
+endif
+REMOTE_SERVER_URI=${REMOTE_SERVER_LOGIN}@${REMOTE_SERVER_HOST}
+REMOTE_SERVER_URI=$(REMOTE_SERVER_HOSTNAME)
+AS_USER=root
+AS_GROUP=root
 
-##################################################
-# Directories
-##################################################
-srcdir_top=.
-srcdir=$(srcdir_top)/src
-buildir=$(srcdir_top)/build
-bindir=~/bin
+build: puship pullip
 
-##################################################
-# Files
-##################################################
-in_autobak=$(app_name).sh
-out_autobak=$(app_name)
+install: build
+	install -t ~/bin ./puship ./pullip
 
-all: build
+setup_remote:
+	echo $(USER)
+	id
+	ssh -o "PasswordAuthentication no" $(REMOTE_SERVER_HOST) "id; if grep --quiet $(REMOTE_SERVER_LOGIN) /etc/passwd; then \
+	echo $(REMOTE_SERVER_LOGIN) exists; \
+	else \
+	echo $(REMOTE_SERVER_LOGIN) does not exist; \
+	fi
+	"
 
-##################################################
-# Build
-##################################################
-build: $(out_autobak)
+uninstall:
+	rm -f ~/bin/puship
+	rm -f ~/bin/pullip
 
-$(out_autobak): $(in_autobak)
-	cat $^ > $@
+puship: puship.sh
+	cat $< > $@
 	chmod +x $@
 
-##################################################
-# Install
-##################################################
-install: $(out_autobak)
-	cp --update $(out_autobak) $(bindir)
-
-##################################################
-# run
-##################################################
-run: file?=$(in_autobak)
-run: $(file)
-	@if [[ "$${file:-}" == "" ]]; then
-	echo "Usage: 'make run file [args]'"
-	exit 1
-	fi
-	$(loadenv)
-	extension="$${file##*.}"
-	case $$extension in
-	sh)
-	$(SHELL) $(file) $(args)
-	;;
-	js | mjs)
-	$(node) $(nodeflags) $(file) $(args)
-	;;
-	ts)
-	$(tsnode) $(nodeflags) $(file) $(args)
-	;;
-	*)
-	echo "Unrecognized extension: $$extension"
-	echo "Failed to 'make $@ $^'"
-	;;
-	esac
-
-.DEFAULT:
-	@if [ ! -f "$<" ]; then
-	echo "Missing file $${file:-}"
-	exit 1
-	fi
-
-
-##################################################
-# clean
-##################################################
-clean:
-	-rm -f *.log
-	-rm -f .#*
-	-rm -f env.*
-	-rm -f $(out_autobak)
-	find $(srcdir_top) -name '*~' -exec rm {} \;
-
-##################################################
-# distclean
-##################################################
-distclean: clean
-
-# Develop
-.PHONY: run
-.PHONY: build
-# Distribute
-.PHONY: install
-# Clean
-.PHONY: clean
-.PHONY: distclean
-# Misc
-.PHONY: all
-
+pullip: pullip.sh
+	cat $< > $@
+	chmod +x $@

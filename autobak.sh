@@ -21,6 +21,10 @@ main() {
     parse_args "$@"
     set -- "${POSARGS[@]}"
 
+    # Backup host
+    # backup_machine_uri_origin=localhost
+    # backup_machine_uri_path=
+
     # Gather target storage medium information
     debugv hdd_id
     parlabel=$hdd_id
@@ -56,7 +60,9 @@ main() {
     debugv hostname
     destination_path=${mountpoint}/${source_user}@${hostname}
     debugv destination_path
-    rsync --cvs-exclude --archive --human-readable \
+    chmod a=+rwx ${destination_path}
+    runuser -u ${source_user} -- \
+            rsync --cvs-exclude --archive --human-readable \
           --mkpath --verbose \
           ${source_path}/* ${destination_path}/
     umount --verbose ${mountpoint}

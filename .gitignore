@@ -22,3 +22,7 @@ env.*.local
 
 # Build process outputs
 autobak
+
+# build artifacts
+puship
+pullip

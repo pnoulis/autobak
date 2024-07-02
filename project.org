@@ -2,24 +2,101 @@
 
 Task planner and documentation repository for the autobak project.
 
-* Tasks
-
-** Identify the target backup medium
-realpath -e /dev/disk/by-id/${target_hdd}
-
-** Mount it
-
 * Resources
+
+https://superuser.com/questions/1689748/straight-rsync-with-intermediate-ssh-host
 
 * What do I want from my backup system?
 
-Run automaticaly at frequent time intervals.
+- Run automaticaly at frequent time intervals.
 
-Notify me at the end of the process.
+- Notify me at the end of the process.
 
-Should backup the data in a central remote server.
+- Backups are stored in my own local home server. Specifically, a
+  third party remote storage provider is not used because it would be
+  very expensive.
 
-Should take into consideration of version control systems.
-Specifically, version controlled directory trees require a different
-backing strategy.
+* The backup process
 
+** find out the IP of my local home server.
+
+ISP's IP allocation is not static. That means that a router's public
+IP or WAN IP (wide area network) is subject to change.
+
+Therefore a successful connection to my home server is not guaranteed
+due to an IP mismatch. Even worse, there could be a situation where
+the previously used IP has been allocated to some other dude.
+What if this dude has a similar infrastructure to mine where I end up
+transferring all my files to his PC?. That would be interesting...
+
+Now, one could request a static IP from their ISP but they charge
+a steep price for that.
+
+Instead, one possible solution could be the use of a server in some
+cheap web hosting service provider (even free ones exist) that could
+be used as a sort of DNS (domain name system).
+
+The home server would periodically update the DNS records. As such,
+every time the backup service runs it would first receive my home
+server IP from the host sitting behind a static IP.
+
+It would then use that IP to connect to my home server.
+
+** Router port forwarding.
+** SSH authentication methods
+
+Any user attempting to gain access to a host protected by public key
+cryptography must present to the host the public key.
+
+That public key along with the host's private key are used to
+authenticate the user requesting access.
+
+** User accounts and permissions
+
+The script that updates the IP on the remote machine needs
+elevated permissions to write the new IP to /etc/hosts.
+
+There are many methods of privilege escalation.
+
+1. Running sudo would need to set the setuid of the script.
+
+   I do not know how to do that, so for now this approach is rejected.
+
+2. Connect to the remote server as root.
+
+   Rejected for security reasons.
+
+3. Create an admin group in the remote server.
+
+   The /etc/hosts file could then be modified to belong to another
+   group other than root. Users needing to write that file could then
+   be added to that group.
+
+** Scheduling IP updates and backup scripts.
+
+The IP update script and automated backup scripts are scheduled to run
+every day through cron.
+
+The scheduled job time is important for the following reasons
+
+- Cost
+
+  If the host has to remain idle waiting on the scheduled jobs this is
+  a waste of resources and drives electricity costs up.
+
+- Speed
+
+  The backup scripts should be run at a time where activity is at its
+  lowest. This not only increases the speed of the backup but does not
+  put extra strain on the host's resources that I might be working on.
+
+- Risk
+
+  The backup should be taken at a time where there is a low risk of
+  new files being created or modified. This decreases the time where a
+  file is considered unprotected due to lack of a backup.
+
+Care should also be taken to coordinate the pushing of a new IP to
+occur just before the automated backup scripts run. This decreases the
+chances that an outdated IP will result in a backup failure or worse a
+transferring of my files to some unknown host.
