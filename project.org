@@ -68,9 +68,13 @@ There are many methods of privilege escalation.
 
 3. Create an admin group in the remote server.
 
-   The /etc/hosts file could then be modified to belong to another
-   group other than root. Users needing to write that file could then
-   be added to that group.
+   This approach can be achieved by:
+
+   - Create an <admin> user and group in the remote machine.
+   - Add root to the admin group.
+   - Change the owning group of the /etc/hosts file to the <admin> group
+   - The script needing to write the /etc/hosts file then should login
+     as the <admin> user.
 
 ** Scheduling IP updates and backup scripts.
 
