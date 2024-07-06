@@ -1,7 +1,7 @@
 #!/bin/make
 
 SHELL := /bin/bash
-.DEFAULT_GOAL := run
+.DEFAULT_GOAL := build
 .DELETE_ON_ERROR:
 .ONESHELL:
 
@@ -15,7 +15,7 @@ REMOTE_ACCOUNT_ADMIN	 = admin
 
 BINDIR								 = /home/pnoul/tmp
 PUSHIP								 = ./puship
-PULLIP								 = ./pullip
+edithosts								 = ./edithosts
 
 # minute hours day-of-month month day-of-week USER
 CROND_PUSHIP_LOGFILE   = ~/puship.log
@@ -34,7 +34,7 @@ rm										 = /usr/bin/rm
 cat										 = /usr/bin/cat
 crond									 = /usr/bin/crond
 
-build: crontab $(PUSHIP) $(PULLIP)
+build: crontab $(PUSHIP) $(edithosts)
 
 crontab: crontab.conf
 	@$(m4) -DCROND_PUSHIP_CONFIG="\
@@ -64,12 +64,12 @@ $(PUSHIP): puship.sh
 	$(cat) $< > $@
 	$(chmod) --verbose 755 $@
 
-$(PULLIP): pullip.sh
+$(edithosts): edithosts.sh
 	$(cat) $< > $@
 	$(chmod) --verbose 755 $@
 
-install: build setup_host setup_remote \
-				install_pullip install_puship schedule_puship
+install: build setup_remote \
+				install_edithosts install_puship schedule_puship
 	@echo "Done !!"
 
 schedule_puship: setup_crond
@@ -85,31 +85,31 @@ setup_remote: run_as_root
 # 3. Add root to the group REMOTE_ACCOUNT_ADMIN
 # 4. Change the owning Group of REMOTE_HOSTSFILE to REMOTE_ACCOUNT_ADMIN
 # 5. Change the mode bits of REMOTE_HOSTSFILE to rw-rw-r
-	$(ssh) -o '$(sshflags)' 'ssh://root@$(REMOTE_HOST)' "\
-		useradd --user-group --no-create-home --comment 'system administrator' $(REMOTE_ACCOUNT_ADMIN); \
+	$(ssh) -o '$(sshflags)' 'ssh://root@$(REMOTE_HOST)' \
+		"useradd --user-group --no-create-home --comment 'system administrator' $(REMOTE_ACCOUNT_ADMIN); \
 		usermod --append --groups $(REMOTE_ACCOUNT_ADMIN) root; \
 		chown --verbose :$(REMOTE_ACCOUNT_ADMIN) $(REMOTE_HOSTSFILE); \
 		chmod --verbose 664 $(REMOTE_HOSTSFILE)"
 
-install_pullip: run_as_root
+install_edithosts: run_as_root
 # 1. Ensure that the installation directory DESTDIR/BINDIR exists at REMOTE_HOST
-# 3. Install PULLIP over to REMOTE_HOST at DESTDIR/BINDIR
-	$(ssh) -o '$(sshflags)' 'ssh://root@$(REMOTE_HOST)' "\
-		mkdir --verbose --parents $(DESTDIR)$(BINDIR)"
-	$(scp) -o '$(sshflags)' $(PULLIP) 'scp://root@$(REMOTE_HOST)/$(DESTDIR)$(BINDIR)'
+# 3. Install edithosts over to REMOTE_HOST at DESTDIR/BINDIR
+	$(ssh) -o '$(sshflags)' 'ssh://root@$(REMOTE_HOST)' \
+	"mkdir --verbose --parents $(DESTDIR)$(BINDIR)"
+	$(scp) -o '$(sshflags)' $(edithosts) 'scp://root@$(REMOTE_HOST)/$(DESTDIR)$(BINDIR)'
 
 install_puship: run_as_root
 	$(cp) -f $(PUSHIP) $(DESTDIR)$(BINDIR)
 
-uninstall: uninstall_puship uninstall_pullip
+uninstall: uninstall_puship uninstall_edithosts
 
 uninstall_puship:
 	$(rm) --verbose --force $(DESTDIR)$(BINDIR)/$(PUSHIP)
 
-uninstall_pullip:
-# 1. Remove PULLIP from REMOTE_HOST
-	$(ssh) -o '$(sshflags)' 'ssh://root@$(REMOTE_HOST)' "\
-		rm --verbose --force $(DESTDIR)$(BINDIR)/$(PULLIP)"
+uninstall_edithosts:
+# 1. Remove edithosts from REMOTE_HOST
+	$(ssh) -o '$(sshflags)' 'ssh://root@$(REMOTE_HOST)' \
+		"rm --verbose --force $(DESTDIR)$(BINDIR)/$(edithosts)"
 
 run_as_root:
 	@if [[ "$(USER)" != 'root' ]]; then
@@ -119,7 +119,7 @@ run_as_root:
 
 clean:
 	rm -f $(PUSHIP)
-	rm -f $(PULLIP)
+	rm -f $(edithosts)
 	rm -f crontab
 
 PHONY: build install uninstall clean
