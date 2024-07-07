@@ -1,52 +1,35 @@
 #!/bin/bash
 
+usage() {
+    cat<<EOF
+NAME
+    ${0} - Shares the WAN IP of the network gateway with a remote host.
+
+SYNOPSIS
+    ${0} {remote_host_uri}
+EOF
+}
+
 set -o errexit
 
 CURL=/usr/bin/curl
 SSH=/usr/bin/ssh
 IP=/usr/bin/ip
-PULLIP=/home/pnoul/usr/src/pnoul/backup/pullip.sh
-
-USERCONFROOTDIR=.
-CONFIG_FILENAME=puship.conf
-REMOTE_SERVER_IP=159.89.21.248
-REMOTE_SERVER_HOSTNAME=localhost
-REMOTE_SERVER_LOGIN=pnoul
-REMOTE_SERVER_URI=${REMOTE_SERVER_LOGIN}@${REMOTE_SERVER_HOSTNAME}
-HOME_SERVER_HOSTNAME_ALIAS=home_server
-HOSTSFILE=~/hosts
 
 main() {
-    print "Attempting to distribute IP..."
+    local remote_host_uri="$1"
+    local edithosts_args="${@:2}"
+
+    print "[$(date)] Attempting to push IP..."
     home_server_ip_wan=$(get_router_wan_ip)
     home_server_ip_lan=$(get_host_ip)
     home_server_hostname=$(hostname)
-    run_pullip
-    print "Done"
+    run_edithosts
 }
 
-debugv() {
-    echo $1:"${!1}"
-}
-
-fatal() {
-    echo "$0:" "$@"
-    exit 1
-}
-
-print() {
-    echo -e "${0}: $@"
-}
-
-read_config() {
-    for config in ${SYSCONFDIR}/puship.conf ${HOME}/${CONFIG_FILENAME}; do
-        echo "Attempting to read configuration file: ${config}"
-        [[ ! -f $config_path ]] && fatal "Missing config file -> ${config}"
-    done
-}
-
-run_pullip() {
-    $SSH ${REMOTE_SERVER_URI} "${PULLIP} ${HOSTSFILE} ${home_server_ip_wan} ${home_server_hostname} ${HOME_SERVER_HOSTNAME_ALIAS}"
+run_edithosts() {
+    $SSH "$remote_host_uri" \
+         "edithosts ${home_server_ip_wan} ${home_server_hostname}"
 }
 
 get_router_wan_ip() {
@@ -56,5 +39,35 @@ get_router_wan_ip() {
 get_host_ip() {
     echo $($IP addr | grep -i 'wlo1' | awk '/inet/ {print $2}')
 }
+
+true() {
+    if [[ "${!1}" == true ]] || [[ "${!1}" != false && "${!1}" != '' ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+false() {
+    if [[ "${!1}" == false || "${!1}" == "" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+debugv() {
+    if true debug; then
+        echo $1:"${!1}"
+    else
+        return 0
+    fi
+}
+print() {
+    echo -e "${0}: $@"
+}
+fatal() {
+    print "$@"
+    exit 1
+}
+
 
 main
