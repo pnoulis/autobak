@@ -43,6 +43,12 @@ server IP from the host sitting behind a static IP.
 It would then use that IP to connect to my home server.
 
 ** Router port forwarding.
+*** Resources
+https://en.wikipedia.org/wiki/Universal_Plug_and_Play
+
+protocol: UDP
+port: 1900
+
 ** SSH authentication methods
 
 Any user attempting to gain access to a host protected by public key
@@ -100,7 +106,26 @@ The scheduled job time is important for the following reasons
   new files being created or modified. This decreases the time where a
   file is considered unprotected due to lack of a backup.
 
-Care should also be taken to coordinate the pushing of a new IP to
-occur just before the automated backup scripts run. This decreases the
-chances that an outdated IP will result in a backup failure or worse a
-transferring of my files to some unknown host.
+
+An example crontab is produced by Make. The user is then expected to
+copy the crontab configuration of PUSHIP to one of the designated
+configuration files if they so wish.
+
+The run time of the job can be customized through the `./configure`
+script.
+
+* Installation algorithm
+** install puship in the local host
+** install pullip in the remote host
+
+* <2024-07-07 Sun>
+
+** transfer all options from the makefile to the configure script
+*** CROND_PUSHIP_RUNTIME
+*** USER
+*** BINDIR
+*** PUSHIP
+*** CROND_PUSHIP_LOGFILE
+*** SYSCONFDIR
+
+** start with the program dependencies
