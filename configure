@@ -59,6 +59,16 @@ export PKG_DISTNAME=${PKG_TARNAME}-${PKG_VVERSION}
 export PKG_HOMEPAGE='https://github.com/pnoulis/autobak'
 export PKG_BUGREPORT='https://github.com/pnoulis/autobak/issues'
 
+# Options
+export PROXY_HOSTNAME=localhost
+export PROXY_PORT=22
+export PROXY_HOSTSFILE=/home/pnoul/hosts
+export PROXY_LOGIN_USERNAME=admin
+export PUSHIP_CRON_LOGFILE='~/puship.log'
+export PUSHIP_CRON_RUNTIME='*/2 * * * *'
+export AUTOBAK_CRON_LOGFILE='~/autobak.log'
+export AUTOBAK_CRON_RUNTIME='*/2 * * * *'
+
 main() {
     parse_args "$@"
     set -- "${POSARGS[@]}"
@@ -66,6 +76,7 @@ main() {
     resolve_buildir
     resolve_system
     resolve_dependencies
+    resolve_options
     define_program_name
     define_installdirs
     define_derived_installdirs
@@ -75,6 +86,17 @@ main() {
     cleanup
 }
 
+resolve_options() {
+    print_chapter "Resolving options..."
+    echo "PROXY_HOSTNAME...|$PROXY_HOSTNAME"
+    echo "PROXY_PORT...|$PROXY_PORT"
+    echo "PROXY_HOSTSFILE...|$PROXY_HOSTSFILE"
+    echo "PROXY_LOGIN_USERNAME...|$PROXY_LOGIN_USERNAME"
+    echo "PUSHIP_CRON_LOGFILE...|$PUSHIP_CRON_LOGFILE"
+    echo "PUSHIP_CRON_RUNTIME...|$PUSHIP_CRON_RUNTIME"
+    echo "AUTOBAK_CRON_LOGFILE...|$AUTOBAK_CRON_LOGFILE"
+    echo "AUTOBAK_CRON_RUNTIME...|$AUTOBAK_CRON_RUNTIME"
+}
 resolve_buildir() {
     print_chapter "Resolving buildir..."
 
