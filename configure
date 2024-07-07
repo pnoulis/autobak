@@ -1,0 +1,460 @@
+#!/bin/bash
+
+usage() {
+    cat<<EOF
+NAME
+    ${0} - configure package
+
+SYNOPSIS
+    ${0} [...OPTIONS]
+
+    --proxy-hostname, --proxy-hostname=
+    --proxy-port, --proxy-port=
+    --proxy-hostsfile, --proxy-hostsfile=
+    --proxy-login-username, --proxy-login-username=
+    --puship-cron-logfile, --puship-logfile=
+    --puship-cron-runtime, --puship-cron-runtime=
+    --autobak-cron-logfile, --autobak-cron-logfile=
+    --autobak-cron-runtime, --autobak-cron-runtime=
+    --sysconfdir, --sysconfdir=
+    --bindir, --bindir=
+EOF
+}
+
+# IFS needs to be set, to space, tab, and newline, in precisely that order.
+# (If _AS_PATH_WALK were called with IFS unset, it would have the
+# side effect of setting IFS to empty, thus disabling word splitting.)
+# Quoting is to prevent editors from complaining about space-tab.
+as_nl='
+'
+export as_nl
+IFS=" ""	$as_nl"
+
+PS1='$ '
+PS2='> '
+PS4='+ '
+
+# Ensure predictable behavior from utilities with locale-dependent output.
+LC_ALL=C
+export LC_ALL
+LANGUAGE=C
+export LANGUAGE
+
+# Log configure output
+rm -f config.log
+exec > >(tee config.log)
+pre_config_env=$(mktemp)
+printenv > $pre_config_env
+post_config_env=$(mktemp)
+
+# App description
+export PKG_NAME=autobak
+export PKG_TARNAME=autobak
+export PKG_DESCRIPTION=
+export PKG_LICENSE=
+export PKG_REPOSITORY='https://github.com/pnoulis/autobak'
+export PKG_VERSION=0.0.1
+export PKG_VVERSION=v${PKG_VERSION}
+export PKG_DISTNAME=${PKG_TARNAME}-${PKG_VVERSION}
+export PKG_HOMEPAGE='https://github.com/pnoulis/autobak'
+export PKG_BUGREPORT='https://github.com/pnoulis/autobak/issues'
+
+main() {
+    parse_args "$@"
+    set -- "${POSARGS[@]}"
+
+    resolve_buildir
+    resolve_system
+    resolve_dependencies
+    define_program_name
+    define_installdirs
+    define_derived_installdirs
+    create_envfile
+    create_macrosfile
+    create_makefile
+    cleanup
+}
+
+resolve_buildir() {
+    print_chapter "Resolving buildir..."
+
+    declare -gx BUILDIR=.
+    declare -gx BUILDIR_ABS="$(pwd)"
+    declare -gx SRCDIR_ABS="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+    declare -gx SRCDIR="$(realpath -e --relative-to="$BUILDIR_ABS" "$SRCDIR_ABS")"
+
+    echo "BUILDIR_ABS...|$BUILDIR_ABS"
+    echo "BUILDIR...|$BUILDIR"
+    echo "SRCDIR_ABS...|$SRCDIR_ABS"
+    echo "SRCDIR...|$SRCDIR"
+}
+
+resolve_system() {
+    print_chapter "Resolving system..."
+    case "$(uname -s)" in
+        Linux*)
+            BUILD_KERNEL=linux
+            ;;
+        Darwin*)
+            BUILD_KERNEL=mac
+            ;;
+        *)
+            fatal "Could not resolve system: '$(uname -s)'"
+            ;;
+    esac
+    echo "BUILD_KERNEL...|$BUILD_KERNEL"
+}
+
+resolve_dependencies() {
+  print_chapter "Resolving dependencies..."
+
+  printf "Checking dependency...|bash...|"
+  declare -gx BASH="$(which bash)"
+  false BASH && fatal MISSING
+  echo "$BASH"
+
+  printf "Checking dependency...|make...|"
+  declare -gx MAKE="$(which make)"
+  false MAKE && fatal MISSING
+  echo "$MAKE"
+
+  printf "Checking dependency...|m4...|"
+  declare -gx M4="$(which m4)"
+  false M4 && fatal MISSING
+  echo "$M4"
+
+  printf "Checking dependency...|jq...|"
+  declare -gx JQ="$(which jq)"
+  false JQ && fatal MISSING
+  echo "$JQ"
+
+  printf "Checking dependency...|grep...|"
+  declare -gx GREP="$(which grep)"
+  false GREP && fatal MISSING
+  echo "$GREP"
+
+  printf "Checking dependency...|ssh...|"
+  declare -gx SSH="$(which ssh)"
+  false SSH && fatal MISSING
+  echo "$SSH"
+
+  printf "Checking dependency...|scp...|"
+  declare -gx SCP="$(which scp)"
+  false SCP && fatal MISSING
+  echo "$SCP"
+
+  printf "Checking dependency...|chmod...|"
+  declare -gx CHMOD="$(which chmod)"
+  false CHMOD && fatal MISSING
+  echo "$CHMOD"
+
+  printf "Checking dependency...|chown...|"
+  declare -gx CHOWN="$(which chown)"
+  false CHOWN && fatal MISSING
+  echo "$CHOWN"
+
+  printf "Checking dependency...|cp...|"
+  declare -gx CP="$(which cp)"
+  false CP && fatal MISSING
+  echo "$CP"
+
+  printf "Checking dependency...|rm...|"
+  declare -gx RM="$(which rm)"
+  false RM && fatal MISSING
+  echo "$RM"
+
+  printf "Checking dependency...|cat...|"
+  declare -gx CAT="$(which cat)"
+  false CAT && fatal MISSING
+  echo "$CAT"
+
+  printf "Checking dependency...|crond...|"
+  declare -gx CROND="$(which crond)"
+  false CROND && fatal MISSING
+  echo "$CROND"
+}
+
+define_installdirs() {
+    print_chapter "Defining installation directory variables..."
+
+    ## GNU standard installation directory variables
+    ## https://www.gnu.org/prep/standards/html_node/Directory-Variables.html
+    false PREFIX && declare -gx PREFIX="${prefix:-/usr/local}"
+    false EXEC_PREFIX && declare -gx EXEC_PREFIX='${prefix}'
+    false BINDIR && declare -gx BINDIR='${exec_prefix}/bin'
+    false SBINDIR && declare -gx SBINDIR='${exec_prefix}/sbin'
+    false LIBEXECDIR && declare -gx LIBEXECDIR='${exec_prefix}/libexec'
+    false DATAROOTDIR && declare -gx DATAROOTDIR='${prefix}/share'
+    false DATADIR && declare -gx DATADIR='${datarootdir}'
+    false SYSCONFDIR && declare -gx SYSCONFDIR='${prefix}/etc'
+    false SHAREDSTATEDIR && declare -gx SHAREDSTATEDIR='${prefix}/com'
+    false LOCALSTATEDIR && declare -gx LOCALSTATEDIR='${prefix}/var'
+    false RUNSTATEDIR && declare -gx RUNSTATEDIR='${localstatedir}/run'
+    false INCLUDEDIR && declare -gx INCLUDEDIR='${prefix}/include'
+    false OLDINCLUDEDIR && declare -gx OLDINCLUDEDIR='/usr/include'
+    false DOCDIR && declare -gx DOCDIR='${datarootdir}/doc/${program_name}'
+    false INFODIR && declare -gx INFODIR='${datarootdir}/info'
+    false HTMLDIR && declare -gx HTMLDIR='${docdir}'
+    false DVIDIR && declare -gx DVIDIR='${docdir}'
+    false PDFDIR && declare -gx PDFDIR='${docdir}'
+    false PSDIR && declare -gx PSDIR='${docdir}'
+    false LIBDIR && declare -gx LIBDIR='${exec_prefix}/lib'
+    false LOCALEDIR && declare -gx LOCALEDIR='${datarootdir}/locale'
+    false MANDIR && declare -gx MANDIR='${datarootdir}/man'
+
+    echo "PREFIX...|$PREFIX"
+    echo "EXEC_PREFIX...|$EXEC_PREFIX"
+    echo "BINDIR...|$BINDIR"
+    echo "SBINDIR...|$SBINDIR"
+    echo "LIBEXECDIR...|$LIBEXECDIR"
+    echo "DATAROOTDIR...|$DATAROOTDIR"
+    echo "DATADIR...|$DATADIR"
+    echo "SYSCONFDIR...|$SYSCONFDIR"
+    echo "SHAREDSTATEDIR...|$SHAREDSTATEDIR"
+    echo "LOCALSTATEDIR...|$LOCALSTATEDIR"
+    echo "RUNSTATEDIR...|$RUNSTATEDIR"
+    echo "INCLUDEDIR...|$INCLUDEDIR"
+    echo "OLDINCLUDEDIR...|$OLDINCLUDEDIR"
+    echo "DOCDIR...|$DOCDIR"
+    echo "INFODIR...|$INFODIR"
+    echo "HTMLDIR...|$HTMLDIR"
+    echo "DVIDIR...|$DVIDIR"
+    echo "PDFDIR...|$PDFDIR"
+    echo "PSDIR...|$PSDIR"
+    echo "LIBDIR...|$LIBDIR"
+    echo "LOCALEDIR...|$LOCALEDIR"
+    echo "MANDIR...|$MANDIR"
+}
+
+define_derived_installdirs() {
+    print_chapter "Defining derived installation directory variables..."
+
+    false TMPDIR && declare -gx 'TMPDIR=${TMPDIR:-/tmp}'
+    false TMPDIR_PERSISTENT && declare -gx TMPDIR_PERSISTENT='/var/tmp'
+    false STATEDIR && declare -gx STATEDIR='${localstatedir}/lib/${program_name}'
+    false CACHEDIR && declare -gx CACHEDIR='${localstatedir}/cache/${program_name}'
+    false LOGDIR && declare -gx LOGDIR='${localstatedir}/log/${program_name}'
+    false SPOOLDIR && declare -gx SPOOLDIR='${localstatedir}/spool/${program_name}'
+    false LOCKDIR && declare -gx LOCKDIR='${runstatedir}'
+    false DESKTOPDIR && declare -gx DESKTOPDIR='${datarootdir}/applications'
+    false ICONDIR && declare -gx ICONDIR='${datarootdir}/icons'
+    false METAINFODIR && declare -gx METAINFODIR='${datarootdir}/metainfo'
+
+    echo "TMPDIR...|$TMPDIR"
+    echo "TMPDIR_PERSISTENT...|$TMPDIR_PERSISTENT"
+    echo "STATEDIR...|$STATEDIR"
+    echo "CACHEDIR...|$CACHEDIR"
+    echo "LOGDIR...|$LOGDIR"
+    echo "SPOOLDIR...|$SPOOLDIR"
+    echo "LOCKDIR...|$LOCKDIR"
+    echo "DESKTOPDIR...|$DESKTOPDIR"
+    echo "ICONDIR...|$ICONDIR"
+    echo "METAINFODIR...|$METAINFODIR"
+}
+
+define_program_name() {
+    print_chapter "Definining program name..."
+
+    PROGRAM_TRANSFORM_NAME='s,x,x,'
+    if true PROGRAM_PREFIX; then
+        PROGRAM_TRANSFORM_NAME="s&^&$PROGRAM_PREFIX&;$PROGRAM_TRANSFORM_NAME"
+    fi
+    if true PROGRAM_SUFFIX; then
+        PROGRAM_TRANSFORM_NAME="s&\$&$PROGRAM_SUFFIX&;$PROGRAM_TRANSFORM_NAME"
+    fi
+
+    declare -gx PROGRAM_NAME="$(echo "$PKG_TARNAME" | sed "$PROGRAM_TRANSFORM_NAME")"
+    declare -gx PROGRAM_VNAME="${PROGRAM_NAME}-${PKG_VERSION}"
+
+    echo "PROGRAM_NAME...|$PROGRAM_NAME"
+    echo "PROGRAM_VNAME...|$PROGRAM_VNAME"
+}
+
+create_envfile() {
+    print_chapter "Creating envfile..."
+    declare -gx OUT_CONFIG_ENVFILE=${BUILDIR}/config.env
+    OUT_CONFIG_ENVFILE_abs=${BUILDIR_ABS}/config.env
+    rm -f $OUT_CONFIG_ENVFILE
+
+    printenv > $post_config_env
+    rm -f $OUT_CONFIG_ENVFILE
+    local unquoted_envars=$(TMPDIR= mktemp)
+    diff --normal $pre_config_env $post_config_env | grep '^>' | cut -c3- | sort > $unquoted_envars
+    while IFS='=' read -r k v; do
+        # Quote values
+        if [[ "$v" =~ \' ]]; then
+            printf "%s=\"%s\"\n" "$k" "$v" >> $OUT_CONFIG_ENVFILE
+        else
+            printf "%s='%s'\n" "$k" "$v" >> $OUT_CONFIG_ENVFILE
+        fi
+    done < $unquoted_envars
+
+    rm -f $unquoted_envars
+    echo "OUT_CONFIG_ENVFILE...|$OUT_CONFIG_ENVFILE"
+    echo "OUT_CONFIG_ENVFILE_ABS...|$OUT_CONFIG_ENVFILE_abs"
+}
+
+create_macrosfile() {
+  print_chapter "Creating macrosfile..."
+  declare -gx OUT_CONFIG_MACROSFILE=${BUILDIR}/config.macros.m4
+  OUT_CONFIG_MACROSFILE_abs=${BUILDIR_ABS}/config.macros.m4
+  rm -f $OUT_CONFIG_MACROSFILE
+
+  local unquoted_envars=$(TMPDIR= mktemp)
+  diff --normal $pre_config_env $post_config_env | grep '^>' | cut -c3- | sort > $unquoted_envars
+  rm -f $OUT_CONFIG_MACROSFILE
+  while IFS='=' read -r key value; do
+    cat <<EOF >> $OUT_CONFIG_MACROSFILE
+define(\`IN_$key', \`$value')dnl
+EOF
+  done < $unquoted_envars
+  echo "changequote(\`[[[', \`]]]')dnl" >> $OUT_CONFIG_MACROSFILE
+
+  rm -f $unquoted_envars
+  echo "OUT_CONFIG_MACROSFILE...|$OUT_CONFIG_MACROSFILE"
+  echo "OUT_CONFIG_MACROSFILE_ABS...|$OUT_CONFIG_MACROSFILE_abs"
+}
+
+create_makefile() {
+    print_chapter "Creating makefile..."
+    declare -gx OUT_CONFIG_MAKEFILE=${BUILDIR}/Makefile
+    OUT_CONFIG_MAKEFILE_abs=${BUILDIR_ABS}/Makefile
+    in_makefile=${SRCDIR_ABS}/Makefile.in
+    rm -f $OUT_CONFIG_MAKEFILE
+
+    m4 -DIN_CONFIG_MAKEFILE=$OUT_CONFIG_MAKEFILE \
+       -DIN_CONFIG_ENVFILE=$OUT_CONFIG_ENVFILE \
+       -DIN_CONFIG_MACROSFILE=$OUT_CONFIG_MACROSFILE \
+       -DIN_SHEBANG='#!' \
+       $OUT_CONFIG_MACROSFILE $in_makefile > $OUT_CONFIG_MAKEFILE
+
+    echo "OUT_CONFIG_MAKEFILE...|$OUT_CONFIG_MAKEFILE"
+    echo "OUT_CONFIG_MAKEFILE_abs...|$OUT_CONFIG_MAKEFILE_abs"
+}
+
+cleanup() {
+    rm -f $pre_config_env
+    rm -f $post_config_env
+}
+
+parse_args() {
+    declare -ga POSARGS=()
+    _param=
+    while (($# > 0)); do
+        case "${1:-}" in
+            --proxy-hostname | --proxy-hostname=*)
+                ;;
+            --proxy-port | --proxy-port=*)
+                ;;
+            --proxy-hostsfile | --proxy-hostsfile=*)
+                ;;
+            --proxy-login-username | --proxy-login-username=*)
+                ;;
+            --puship-cron-logfile | --puship-cron-logfile=*)
+                ;;
+            --puship-cron-runtime | --puship-cron-runtime=*)
+                ;;
+            --autobak-cron-logfile | --autobak-cron-logfile=*)
+                ;;
+            --autobak-cron-runtime | --autobak-cron-runtime=*)
+                ;;
+            --sysconfdir | --sysconfdir=*)
+                ;;
+            --bindir | --bindir=*)
+                ;;
+            -h | --help)
+                usage
+                exit 0
+                ;;
+            -[a-zA-Z][a-zA-Z]*)
+                local i="${1:-}"
+                shift
+                local rest="$@"
+                set --
+                for i in $(echo "$i" | grep -o '[a-zA-Z]'); do
+                    set -- "$@" "-$i"
+                done
+                set -- $@ $rest
+                continue
+                ;;
+            --)
+                shift
+                POSARGS+=("$@")
+                ;;
+            -[a-zA-Z]* | --[a-zA-Z]*)
+                fatal "Unrecognized argument ${1:-}"
+                ;;
+            *)
+                POSARGS+=("${1:-}")
+                ;;
+        esac
+        shift
+    done
+}
+
+parse_param() {
+    _param=
+    local param arg
+    local -i toshift=0
+
+    if (($# == 0)); then
+        return $toshift
+    elif [[ "$1" =~ .*=.* ]]; then
+        param="${1%%=*}"
+        arg="${1#*=}"
+    elif [[ "${2-}" =~ ^[^-].+ ]]; then
+        param="$1"
+        arg="$2"
+        ((toshift++))
+    fi
+
+
+    if [[ -z "${arg-}" && ! "${OPTIONAL-}" ]]; then
+        fatal "${param:-$1} requires an argument"
+    fi
+
+    _param="${arg:-}"
+    return $toshift
+}
+
+true() {
+    if [[ "${!1}" == true ]] || [[ "${!1}" != false && "${!1}" != '' ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+false() {
+    if [[ "${!1}" == false || "${!1}" == "" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+print() {
+    echo -e "${0}: $@"
+}
+
+debugv() {
+    echo $1:"${!1}"
+}
+
+fatal() {
+    print "$@"
+    exit 1
+}
+
+print_chapter() {
+    echo ""
+    echo "##################################################"
+    echo "$@"
+    echo "##################################################"
+}
+
+strip_quotes() {
+    echo "${1//\"/}"
+}
+
+main "$@"

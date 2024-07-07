@@ -1,0 +1,193 @@
+#!/bin/make
+
+##################################################
+# Make config
+##################################################
+.DELETE_ON_ERROR:
+.EXPORT_ALL_VARIABLES:
+.SECONDEXPANSION:
+SHELL					 := IN_BASH
+.DEFAULT_GOAL	 := all
+
+##################################################
+# App description
+##################################################
+pkg_name							= IN_PKG_NAME
+pkg_tarname						= IN_PKG_TARNAME
+pkg_distname					= IN_PKG_DISTNAME
+pkg_version						= IN_PKG_VERSION
+pkg_vversion					= IN_PKG_VVERSION
+pkg_homepage					= IN_PKG_HOMEPAGE
+pkg_bugreport					= IN_PKG_BUGREPORT
+pkg_repository				= IN_PKG_REPOSITORY
+
+##################################################
+# Program name transformation
+##################################################
+program_name					= IN_PROGRAM_NAME
+program_vname					= IN_PROGRAM_VNAME
+
+##################################################
+# Build directories
+##################################################
+buildir								= IN_BUILDIR
+buildir_abs						= IN_BUILDIR_ABS
+srcdir_top						= IN_SRCDIR
+srcdir_top_abs				= IN_SRCDIR_ABS
+srcdir								= $(srcdir_top)/src
+srcdir_abs						= $(srcdir_top_abs)/src
+
+##################################################
+# Installation directories
+##################################################
+# gnu prefix directories
+prefix								= IN_PREFIX
+exec_prefix						= IN_EXEC_PREFIX
+sbindir								= IN_SBINDIR
+libexecdir						= IN_LIBEXECDIR
+datarootdir						= IN_DATAROOTDIR
+datadir								= IN_DATADIR
+sysconfdir						= IN_SYSCONFDIR
+sharedstatedir				= IN_SHAREDSTATEDIR
+localstatedir					= IN_LOCALSTATEDIR
+runstatedir						= IN_RUNSTATEDIR
+includedir						= IN_INCLUDEDIR
+oldincludedir					= IN_OLDINCLUDEDIR
+docdir								= IN_DOCDIR
+infodir								= IN_INFODIR
+htmldir								= IN_HTMLDIR
+dvidir								= IN_DVIDIR
+pdfdir								= IN_PDFDIR
+psdir									= IN_PSDIR
+libdir								= IN_LIBDIR
+localedir							= IN_LOCALEDIR
+mandir								= IN_MANDIR
+# Derived directories
+tmpdir								= IN_TMPDIR
+tmpdir_persistent			= IN_TMPDIR_PERSISTENT
+statedir							= IN_STATEDIR
+cachedir							= IN_CACHEDIR
+logdir								= IN_LOGDIR
+spooldir							= IN_SPOOLDIR
+lockdir								= IN_LOCKDIR
+desktopdir						= IN_DESKTOPDIR
+icondir								= IN_ICONDIR
+metainfodir						=	IN_METAINFODIR
+
+##################################################
+# Tools
+##################################################
+ssh										= IN_SSH
+scp										= IN_SCP
+chmod									= IN_CHMOD
+chown									= IN_CHOWN
+jq										= IN_JQ
+m4										= IN_M4
+cp										= IN_CP
+rm										= IN_RM
+cat										= IN_CAT
+crond									=	IN_CROND
+bumpve								= $(srcdir_top)/scripts/bumpve.sh
+release								= $(srcdir_top)/scripts/release.sh
+
+##################################################
+# Important files
+##################################################
+configfile=$(srcdir_top)/configure
+releasefile=$(srcdir_top)/RELEASE
+
+##################################################
+# Default target
+##################################################
+all: build
+
+##################################################
+# Build
+##################################################
+build:
+
+##################################################
+# Release
+##################################################
+release:
+	$(release)
+
+##################################################
+# Distribute
+##################################################
+dist: archive?=zip
+dist: dist.$$(archive)
+
+##################################################
+# Package
+##################################################
+package: archive?=zip
+package: package.$$(archive)
+
+##################################################
+# Install
+##################################################
+install:
+
+##################################################
+# Uninstall
+##################################################
+uninstall:
+
+##################################################
+# Update
+##################################################
+update:
+
+##################################################
+# clean
+##################################################
+clean:
+	-rm -f *.tar.gz
+
+##################################################
+# distclean
+##################################################
+distclean: clean
+	-rm -f *.log
+	-rm -f .#*
+	-rm -f config.*
+
+##################################################
+# misc
+##################################################
+.DEFAULT:
+	@if [ ! -f "$<" ]; then
+	echo "Missing file $${file:-}"
+	exit 1
+	fi
+
+##################################################
+# directories
+##################################################
+
+##################################################
+# help
+##################################################
+help:
+	@cat ./Makefile | grep -i --color=auto 'phony' | cut -d ' ' -f2- | tail --lines=+3
+
+# Software development
+.PHONY: run # Read dotenvfile and run $target or tmp/scratch.js
+.PHONY: build # Build application
+.PHONY: test # Test application
+# Software distribution
+.PHONY: release # Create a new version
+.PHONY: dist # Distribute source tree
+.PHONY: package # Distribute build
+# Software package
+.PHONY: install # Install package
+.PHONY: uninstall # Uninstall package
+.PHONY: update # Update package
+# Cleaning
+.PHONY: clean # Remove files created by ./make
+.PHONY: distclean # Remove files created by ./configure
+# Misc
+.PHONY: help # Display a short description about each Makefile target's function
+.PHONY: dotenv # Write environment into .env
+.PHONY: all # Default target

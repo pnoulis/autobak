@@ -25,4 +25,7 @@ autobak
 
 # build artifacts
 puship
-pullip
+edithosts
+Makefile
+crontab
+config.*
