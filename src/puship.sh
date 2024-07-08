@@ -12,32 +12,47 @@ EOF
 
 set -o errexit
 
-CURL=/usr/bin/curl
-SSH=/usr/bin/ssh
-IP=/usr/bin/ip
+CURL=IN_CURL
+SSH=IN_SSH
+IP=IN_IP
+EDITHOSTS=IN_EDITHOSTS
+REMOTE_URI=IN_PROXY_LOGIN_USERNAME@IN_PROXY_HOSTNAME
+REMOTE_PORT=IN_PROXY_PORT
+REMOTE_HOSTSFILE=IN_PROXY_HOSTSFILE
+LOCAL_HOSTNAME=IN_HOST_BACKUP_HOSTNAME
+LOCAL_ALIASES=IN_HOST_BACKUP_ALIASES
+DEBUG=
 
 main() {
-    local remote_host_uri="$1"
-    local edithosts_args="${@:2}"
-
     print "[$(date)] Attempting to push IP..."
-    home_server_ip_wan=$(get_router_wan_ip)
-    home_server_ip_lan=$(get_host_ip)
-    home_server_hostname=$(hostname)
-    run_edithosts
+    local_ip_wan="$(get_router_wan_ip)"
+    local_ip_lan="$(get_host_ip)"
+    local_hostname="$(hostname)"
+
+    debugv REMOTE_URI
+    debugv REMOTE_HOSTSFILE
+    debugv LOCAL_HOSTNAME
+    debugv LOCAL_ALIASES
+    debugv local_ip_wan
+    debugv local_ip_lan
+    debugv local_hostname
+
+    update_remote_hostsfile
 }
 
-run_edithosts() {
-    $SSH "$remote_host_uri" \
-         "edithosts ${home_server_ip_wan} ${home_server_hostname}"
+update_remote_hostsfile() {
+    $SSH -p "$REMOTE_PORT" "$REMOTE_URI" \
+         "$EDITHOSTS '${local_ip_wan}' '${local_hostname}' \
+         '${LOCAL_HOSTNAME}' '${LOCAL_ALIASES}' \
+         --hostsfile='$REMOTE_HOSTSFILE'"
 }
 
 get_router_wan_ip() {
-    echo $($CURL -s https://ipinfo.io/ip)
+    echo "$($CURL -s https://ipinfo.io/ip)"
 }
 
 get_host_ip() {
-    echo $($IP addr | grep -i 'wlo1' | awk '/inet/ {print $2}')
+    echo "$($IP addr | grep -i 'wlo1' | awk '/inet/ {print $2}')"
 }
 
 true() {
@@ -55,7 +70,7 @@ false() {
     fi
 }
 debugv() {
-    if true debug; then
+    if true DEBUG; then
         echo $1:"${!1}"
     else
         return 0
@@ -68,6 +83,4 @@ fatal() {
     print "$@"
     exit 1
 }
-
-
-main
+main "$@"

@@ -16,6 +16,8 @@ SYNOPSIS
     --puship-cron-runtime, --puship-cron-runtime=
     --autobak-cron-logfile, --autobak-cron-logfile=
     --autobak-cron-runtime, --autobak-cron-runtime=
+    --host-backup-hostname, --host-backup-hostname
+    --host-backup-aliases, --host-backup-aliases=
     --sysconfdir, --sysconfdir=
     --bindir, --bindir=
 EOF
@@ -68,6 +70,8 @@ export PUSHIP_CRON_LOGFILE='~/puship.log'
 export PUSHIP_CRON_RUNTIME='*/2 * * * *'
 export AUTOBAK_CRON_LOGFILE='~/autobak.log'
 export AUTOBAK_CRON_RUNTIME='*/2 * * * *'
+export HOST_BACKUP_HOSTNAME=
+export HOST_BACKUP_ALIASES=
 
 main() {
     parse_args "$@"
@@ -96,6 +100,8 @@ resolve_options() {
     echo "PUSHIP_CRON_RUNTIME...|$PUSHIP_CRON_RUNTIME"
     echo "AUTOBAK_CRON_LOGFILE...|$AUTOBAK_CRON_LOGFILE"
     echo "AUTOBAK_CRON_RUNTIME...|$AUTOBAK_CRON_RUNTIME"
+    echo "HOST_BACKUP_HOSTNAME...|$HOST_BACKUP_HOSTNAME"
+    echo "HOST_BACKUP_ALIASES...|$HOST_BACKUP_ALIASES"
 }
 resolve_buildir() {
     print_chapter "Resolving buildir..."
@@ -194,6 +200,16 @@ resolve_dependencies() {
   declare -gx CROND="$(which crond)"
   false CROND && fatal MISSING
   echo "$CROND"
+
+  printf "Checking dependency...|curl...|"
+  declare -gx CURL="$(which curl)"
+  false CURL && fatal MISSING
+  echo "$CURL"
+
+  printf "Checking dependency...|ip...|"
+  declare -gx IP="$(which ip)"
+  false IP && fatal MISSING
+  echo "$IP"
 }
 
 define_installdirs() {
@@ -379,6 +395,10 @@ parse_args() {
             --autobak-cron-logfile | --autobak-cron-logfile=*)
                 ;;
             --autobak-cron-runtime | --autobak-cron-runtime=*)
+                ;;
+            --host-backup-hostname | --host-backup-hostname=*)
+                ;;
+            --host-backup-aliases | --host-backup-aliases=*)
                 ;;
             --sysconfdir | --sysconfdir=*)
                 ;;
